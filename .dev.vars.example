@@ -1,0 +1,4 @@
+# Local development only. Replace placeholders in .dev.vars.
+# Generate a fresh 32-byte base64 AES key; never reuse another deployment key.
+FEISHU_VAULT_KEY=REPLACE_WITH_YOUR_OWN_32_BYTE_BASE64_KEY
+SITE_ORIGIN=http://127.0.0.1:5173
