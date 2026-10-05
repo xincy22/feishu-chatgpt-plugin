@@ -1,7 +1,7 @@
 export class PublicError extends Error {
-  constructor(public code: string, message: string, public status = 400) { super(message); }
+  constructor(public code: string, message: string, public status = 400, public details?: {required_scopes:string[]}) { super(message); }
 }
-export const SCOPES = ['offline_access', 'search:docs:read', 'docx:document:readonly', 'wiki:node:read'];
+export const SCOPES = ['offline_access', 'search:docs:read', 'docx:document:readonly', 'wiki:node:read', 'base:record:retrieve'];
 export const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
 export const unb64 = (v: string) => Uint8Array.from(atob(v), c => c.charCodeAt(0));
 export const random = () => b64(crypto.getRandomValues(new Uint8Array(32))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
@@ -48,5 +48,5 @@ export function requireSameOrigin(request:Request, origin:string) {
   if(request.headers.get('origin')!==origin)throw new PublicError('invalid_origin','请求来源不匹配，请从连接页面重试。',403);
 }
 export function publicIssue(error:unknown) {
-  return error instanceof PublicError ? {code:error.code,message:error.message,status:error.status} : {code:'temporarily_unavailable',message:'服务暂时不可用，请稍后重试。',status:503};
+  return error instanceof PublicError ? {code:error.code,message:error.message,status:error.status,...(error.details?{details:error.details}:{})} : {code:'temporarily_unavailable',message:'服务暂时不可用，请稍后重试。',status:503};
 }

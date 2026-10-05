@@ -68,7 +68,7 @@ export async function finishAuthorization(user:string, state:string, code:string
     .bind(await seal(secret(),user+':tokens',tokens),now(),user,r.revision).run();
   if(update.meta.changes!==1)throw new PublicError('config_changed','应用配置已改变，请重新授权。');
 }
-async function currentToken(user:string):Promise<string> {
+export async function currentToken(user:string):Promise<string> {
   const r=await row(user);
   if(!r?.tokens_cipher)throw new PublicError('connect_feishu','请先打开连接页面并授权飞书。',401);
   const t=await openVault<Tokens>(secret(),user+':tokens',r.tokens_cipher);
@@ -101,15 +101,17 @@ async function currentToken(user:string):Promise<string> {
     throw error;
   }
 }
-export async function api(token:string,path:string,body?:unknown):Promise<Record<string,unknown>> {
-  const response=await fetch(API+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+export async function api(token:string,path:string,body?:unknown,method?:string):Promise<Record<string,unknown>> {
+  const response=await fetch(API+path,{redirect:'manual',method:method??(body===undefined?'GET':'POST'),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
     ...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});
-  const payload=await response.json() as {code?:number;data?:Record<string,unknown>};
-  if(!response.ok || payload.code!==0 || !payload.data) {
+  if(!response.headers.get('content-type')?.includes('json'))throw new PublicError('unsupported_response','此工具返回了非 JSON 内容；当前转接层不支持二进制文件传输。',502);
+  const payload=await response.json() as {code?:number;data?:Record<string,unknown>;msg?:string;error?:{permission_violations?:{subject?:string}[]}};
+  if(!response.ok || payload.code!==0) {
     const code=typeof payload.code==='number'?String(payload.code):String(response.status);
-    throw new PublicError('feishu_api_'+code,'飞书请求失败（'+code+'）。请检查应用用户权限、授权范围和文档访问权限。',502);
+    const required=[...new Set([...(payload.error?.permission_violations??[]).map(v=>v.subject??''),...(payload.msg??'').matchAll(/\b(?:base|bitable|wiki|drive|docx|docs|contact|im|task|calendar):[a-z_][a-z0-9_.]*(?::[a-z_][a-z0-9_.]*)*\b/g)].map(v=>typeof v==='string'?v:v[0]).filter(v=>/^[a-z_]+:[a-z0-9_.:]+$/.test(v)))];
+    throw new PublicError('feishu_api_'+code,'飞书请求失败（'+code+'）。'+(required.length?'缺少所需权限，请在应用后台开通后，从连接页面重新授权。':'请检查应用用户权限、授权范围和文档访问权限。'),502,required.length?{required_scopes:required}:undefined);
   }
-  return payload.data;
+  return payload.data ?? {};
 }
 export async function searchDocuments(user:string,query:string,limit:number,offset:number) {
   const token=await currentToken(user);

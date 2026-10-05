@@ -9,7 +9,9 @@ Cloud-hosted MCP tools that connect a user's own Feishu account to ChatGPT and C
 - Read docx documents and docx wiki nodes as paginated plain text.
 - Configure a custom Feishu app and complete OAuth through a private connection page.
 
-This snapshot exposes `feishu_connection_status`, `feishu_search_documents`, and `feishu_read_document`. It does not include ongoing work to add other read/write tools.
+The server also exposes `feishu_find_tools`, `feishu_describe_tool`, `feishu_call_read_tool`, and `feishu_call_write_tool`. A pinned official catalogue contains 501 user-token tools from `@larksuiteoapi/lark-mcp` 0.5.1, alongside explicit personal-library helpers. It covers document, wiki, Bitable, messaging, calendar, and task APIs. Catalogue availability does not mean every API has been tested live or that the connected account has every required permission.
+
+Discover a tool, inspect its schema, then call the appropriate read/write entry point. Write actions require a specific user instruction; sending messages and changing permissions require explicit authorization. Available scopes and resource permissions are enforced by Feishu.
 
 ## Development
 
@@ -25,7 +27,7 @@ npm run dev
 The development server normally starts at http://127.0.0.1:5173. Local preview uses a simulated ChatGPT identity; it does not prove real OAuth access.
 
 ```sh
-node --test tests/core.test.mjs
+node --test tests/*.test.mjs
 npx tsc --noEmit --incremental false
 npm run build
 ```
@@ -45,6 +47,7 @@ In your Feishu custom app, add `<SITE_ORIGIN>/oauth/feishu/callback` as a redire
 - `search:docs:read`
 - `docx:document:readonly`
 - `wiki:node:read`
+- `base:record:retrieve`
 
 Publish the app, enter its App ID and App Secret in your private connection page, and authorize your account. This repository includes no reusable private credentials.
 
@@ -53,6 +56,10 @@ Publish the app, enter its App ID and App Secret in your private connection page
 App Secret and OAuth tokens are encrypted with AES-GCM in the service database, with ciphertext bound to the user and purpose. The service also stores the site user identifier, app ID, and Feishu display name. Requested document content is returned to the client; this version does not persist a document-content cache.
 
 Never commit live credentials, `.dev.vars`, databases, logs, authorization codes, or real account data. A connection deletion/revocation UI is not yet implemented.
+
+## Source snapshot
+
+Prepared from source commit `d4c81c9763b6789066874bb976ea56fd97979a94`. Private deployment identifiers and original commit history are excluded.
 
 ## License
 
