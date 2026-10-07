@@ -125,4 +125,6 @@ Do not commit live credentials, `.dev.vars`, databases, logs, authorization code
 
 This reusable source repository includes authorization diagnostics, pagination safeguards, centered-equation instructions, and lease-based token rotation with recovery. Rate limits and in-progress refreshes retain credentials; saved rotation results can be committed by a subsequent request. An unconfirmed external rotation cannot safely be replayed and may require reconnecting. The original instance's deployment identifiers, live credentials, and runtime data are excluded. A GitHub push and a cloud deployment are separate operations.
 
-No project license has been selected. This is currently a private source backup. Select a license and review dependencies and generated-code licensing before public release. Third-party notices remain under `build/`, `vendor/`, and related directories.
+This project is open source under the [MIT License](LICENSE), allowing use, modification, distribution, and commercial use with the copyright and license notices retained. Third-party code and generated tool definitions retain their respective licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
+
+This is a community-maintained integration, not an official Feishu or OpenAI plugin. Publishing the source does not open the original private instance to the public. Deploy your own service and configure your own Feishu app. Report vulnerabilities through the repository's private reporting channel; see [security guidance](SECURITY.md).
