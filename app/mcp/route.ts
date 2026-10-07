@@ -28,7 +28,7 @@ export async function POST(request:Request) {
   if(body.method==='initialize') {
     const requested=(body.params as {protocolVersion?:string}|undefined)?.protocolVersion;
     return result({protocolVersion:['2024-11-05','2025-03-26','2025-06-18'].includes(requested??'')?requested:'2025-06-18',
-      capabilities:{tools:{}},serverInfo:{name:'feishu-personal-cloud',version:'0.3.0'},
+      capabilities:{tools:{}},serverInfo:{name:'feishu-personal-cloud',version:'0.3.1'},
       instructions:PLUGIN_INSTRUCTIONS});
   }
   if(body.method==='ping')return result({});

@@ -29,7 +29,7 @@ const stored=()=>sql.prepare('SELECT tokens_cipher FROM connections WHERE user_i
 test('first grant can explicitly request document/wiki and Bitable writes',async()=>{
  await seed();const url=new URL(await service.authorize('alice',['documents_write','bitable_write'],['calendar:calendar:read']));
  const scopes=url.searchParams.get('scope').split(' ');
- for(const scope of ['docx:document:create','docx:document:write_only','wiki:node:create','base:record:update','calendar:calendar:read'])assert(scopes.includes(scope));
+ for(const scope of ['docx:document:create','docx:document:write_only','wiki:node:create','base:record:update','calendar:calendar:read','wiki:node:retrieve','wiki:space:retrieve','base:table:read','base:field:read'])assert(scopes.includes(scope));
  assert.equal(scopes.length,new Set(scopes).size);
  await assert.rejects(()=>service.authorize('alice',['invalid']),/未知/);
  await assert.rejects(()=>service.authorize('alice',['read'],['bad scope&state=attack']),/无效/);

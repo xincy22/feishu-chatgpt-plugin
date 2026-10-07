@@ -1,7 +1,7 @@
 import { PublicError, SCOPES } from './feishu-core';
 export const AUTHORIZATION_PROFILES = {
   read: {label:'基础读取',scopes:SCOPES},
-  documents_write: {label:'文档和知识库：创建与编辑',scopes:['docx:document:create','docx:document:write_only','wiki:node:create','wiki:node:update']},
+  documents_write: {label:'文档和知识库：创建与编辑',scopes:['docx:document:create','docx:document:write_only','wiki:node:create']},
   bitable_write: {label:'多维表格任务：新增与更新记录',scopes:['base:record:create','base:record:update']},
 } as const;
 export type AuthorizationProfile=keyof typeof AUTHORIZATION_PROFILES;

@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { SCOPES as defaultScopes } from '@/lib/feishu-core';
 import { Link2, ShieldCheck, FileSearch, FileText, Check, Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 type AuthorizationProfile='read'|'documents_write'|'bitable_write';
 type Connection={requires_attention:boolean;connection_issue:string|null;configured:boolean;connected:boolean;app_id:string|null;feishu_name:string|null;callback_url:string;scopes:string[]|null;authorization_request_scopes:string[];authorization_profiles:Record<AuthorizationProfile,{label:string;scopes:string[]}>;connect_url:string};
-const defaultScopes=['offline_access','search:docs:read','docx:document:readonly','wiki:node:read','base:record:retrieve'];
 
 export default function Home(){
   const [connection,setConnection]=useState<Connection|null>(null);

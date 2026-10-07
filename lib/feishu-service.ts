@@ -22,7 +22,7 @@ export async function status(user:string) {
   const needsAttention=!!t&&t.expiresAt<=now()&&!!lease&&lease.token_hash===await digest(r!.tokens_cipher!)&&['uncertain','blocked'].includes(lease.phase);
   return {requires_attention:needsAttention,connection_issue:needsAttention?(lease?.phase==='uncertain'?'续期响应未确认，需要重新连接以安全恢复。':'应用凭据被拒绝，请检查应用配置。'):null,configured:!!r,connected:!!t && (t.expiresAt>now() || !!t.refreshToken),
     app_id:r?.app_id ?? null,feishu_name:t?.name ?? null,expires_at:t?.expiresAt ?? null,
-    callback_url:callbackUrl(),...scopeReport(t?.grantedScopes),connection_ref:await digest(user+':'+(r?.app_id??'')).then(v=>v.slice(0,12)),server_version:'0.3.0',authorization_profiles:AUTHORIZATION_PROFILES,connect_url:siteOrigin()};
+    callback_url:callbackUrl(),...scopeReport(t?.grantedScopes),connection_ref:await digest(user+':'+(r?.app_id??'')).then(v=>v.slice(0,12)),server_version:'0.3.1',authorization_profiles:AUTHORIZATION_PROFILES,connect_url:siteOrigin()};
 }
 export async function saveConfig(user:string, appId:string, appSecret:string) {
   if(!/^cli_[A-Za-z0-9]{6,128}$/.test(appId)||appSecret.length<10||appSecret.length>512||/[\r\n]/.test(appSecret))

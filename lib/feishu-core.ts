@@ -1,7 +1,7 @@
 export class PublicError extends Error {
   constructor(public code: string, message: string, public status = 400, public details?: Record<string,unknown>) { super(message); }
 }
-export const SCOPES = ['offline_access', 'search:docs:read', 'docx:document:readonly', 'wiki:node:read', 'base:record:retrieve'];
+export const SCOPES = ['offline_access', 'search:docs:read', 'docx:document:readonly', 'wiki:node:read', 'wiki:node:retrieve', 'wiki:space:read', 'wiki:space:retrieve', 'drive:drive.metadata:readonly', 'base:app:read', 'base:table:read', 'base:field:read', 'base:record:retrieve'];
 export const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));
 export const unb64 = (v: string) => Uint8Array.from(atob(v), c => c.charCodeAt(0));
 export const random = () => b64(crypto.getRandomValues(new Uint8Array(32))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');

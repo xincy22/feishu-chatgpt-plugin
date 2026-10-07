@@ -72,6 +72,13 @@ The current service uses ChatGPT Sites for private access, ChatGPT sign-in, and 
    search:docs:read
    docx:document:readonly
    wiki:node:read
+   wiki:node:retrieve
+   wiki:space:read
+   wiki:space:retrieve
+   drive:drive.metadata:readonly
+   base:app:read
+   base:table:read
+   base:field:read
    base:record:retrieve
    ```
 
