@@ -51,7 +51,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-The development server normally starts at `http://127.0.0.1:5173`. Local preview uses a simulated ChatGPT identity and is not real OAuth acceptance.
+Development startup automatically applies local D1 migrations; `npm run db:local` can also be run separately and is idempotent. The development server normally starts at `http://127.0.0.1:5173`. Local preview uses a simulated ChatGPT identity and is not real OAuth acceptance.
 
 ```sh
 node --test tests/*.test.mjs
@@ -78,7 +78,7 @@ The current service uses ChatGPT Sites for private access, ChatGPT sign-in, and 
 4. Complete any publication steps required by Feishu, enter the app credentials on your private connection page, and authorize your account.
 5. Install the plugin provisioned by Sites for that project, following the [installation guide](skill.md).
 
-Other APIs require their corresponding permissions. Default requested scopes are not a complete report of the current token's grants. `scopes=null` means the actual scope set is unknown, not that the connection is read-only. Reauthorize only after confirming a real authorization problem.
+The connection page supports optional document/wiki editing and Bitable record creation/update profiles, plus explicit additional scopes. Select the capabilities and review the added permissions on Feishu's authorization page. Other APIs require their corresponding permissions. Default requested scopes are not a complete report of the current token's grants. `scopes=null` means the actual scope set is unknown, not that the connection is read-only.
 
 Independent hosting needs its own trusted authentication boundary that removes spoofed identity headers. Do not expose a public Worker that trusts caller-supplied `oai-authenticated-user-id`.
 
@@ -104,7 +104,7 @@ Use raw KaTeX in `equation.content`, without outer delimiters such as `$$`. Inli
 
 App Secret and OAuth tokens are encrypted with AES-GCM and bound to the user and purpose. The service stores the connection's user identifier, app ID, and Feishu display name. Requested document content is returned to the client without a persistent content cache.
 
-Do not commit live credentials, `.dev.vars`, databases, logs, authorization codes, or account data. A connection deletion/revocation page is not implemented; authorization can be revoked in Feishu's app authorization management.
+Do not commit live credentials, `.dev.vars`, databases, logs, authorization codes, or account data. The connection page can clear the current user's stored credentials and coordination state. Revoke the provider-side authorization separately through Feishu's app authorization management.
 
 ## Troubleshooting
 
@@ -116,6 +116,6 @@ Do not commit live credentials, `.dev.vars`, databases, logs, authorization code
 
 ## Source and licensing
 
-This reusable source repository has been synchronized to deployment-source commit `8c2ead723c7d83be2b03f2c7a085adb4c8ade607`, including authorization diagnostics, pagination safeguards, and centered-equation instructions. The original instance's deployment identifiers, live credentials, and runtime data are excluded. A GitHub push and a cloud deployment are separate operations.
+This reusable source repository includes authorization diagnostics, pagination safeguards, centered-equation instructions, and lease-based token rotation with recovery. Rate limits and in-progress refreshes retain credentials; saved rotation results can be committed by a subsequent request. An unconfirmed external rotation cannot safely be replayed and may require reconnecting. The original instance's deployment identifiers, live credentials, and runtime data are excluded. A GitHub push and a cloud deployment are separate operations.
 
 No project license has been selected. This is currently a private source backup. Select a license and review dependencies and generated-code licensing before public release. Third-party notices remain under `build/`, `vendor/`, and related directories.
