@@ -1,30 +1,57 @@
-# Feishu integration for ChatGPT and Codex
+# 飞书连接：ChatGPT 与 Codex 插件
 
-Cloud-hosted MCP tools that connect a user's own Feishu account to ChatGPT and Codex.
+**简体中文** | [English](README.en.md) | [ChatGPT 安装指引](skill.md)
 
-## Current capabilities
+通过云端 MCP 服务，让 ChatGPT 和 Codex 访问你自己的飞书账号。连接在云端运行，使用时不依赖本机飞书 CLI 或电脑保持在线。
 
-- Check the current user's connection status.
-- Search visible cloud documents, with pagination and source links.
-- Read docx documents and docx wiki nodes as paginated plain text.
-- Configure a custom Feishu app and complete OAuth through a private connection page.
+## 安装与开始使用
 
-The server also exposes `feishu_find_tools`, `feishu_describe_tool`, `feishu_call_read_tool`, and `feishu_call_write_tool`. A pinned official catalogue contains 501 user-token tools from `@larksuiteoapi/lark-mcp` 0.5.1, alongside explicit personal-library helpers. It covers document, wiki, Bitable, messaging, calendar, and task APIs. Catalogue availability does not mean every API has been tested live or that the connected account has every required permission.
+1. 准备已经部署的私有连接服务，以及它自动生成的「飞书连接」插件。自行部署见下文。
+2. 在 ChatGPT 的 **插件 → 个人 → 我创建的 / 与我共享的** 中找到插件并安装。
+3. 打开该服务的连接页，用同一个 ChatGPT 账号登录，配置飞书自建应用的 App ID 和 App Secret，再完成飞书授权。
+4. 开始新对话，输入 `@` 选择「飞书连接」，先验证：
 
-Discover a tool, inspect its schema, then call the appropriate read/write entry point. Write actions require a specific user instruction; sending messages and changing permissions require explicit authorization. Available scopes and resource permissions are enforced by Feishu.
+   > 检查连接状态，列出我的文档库，再读取一篇我指定的文档。
 
-## Development
+完整的安装、授权和故障处理步骤见 [skill.md](skill.md)。现有私有实例仅供获得访问权限的账号使用；自行部署会获得自己的服务地址和插件。
 
-Requires Node.js >=22.13.0. The stack is Vinext, Cloudflare D1, and Drizzle.
+## 能力与使用方式
+
+| 能力 | 说明 |
+| --- | --- |
+| 云文档 | 搜索、分段读取；通过官方工具创建、追加和编辑文档 |
+| 我的文档库 | 独立列出个人文档库，按父节点和分页标记浏览下级目录 |
+| 知识库 | 浏览知识空间和节点，并调用对应的读写 API |
+| 多维表格 | 列出数据表与字段，查询记录；按用户指示创建、更新记录，可用于任务管理 |
+| 消息、日历、任务等 | 按需查找官方工具并检查参数后调用 |
+| 数学排版 | 行间公式独立成段并居中，行内公式保留正文排版 |
+
+固定使用 `@larksuiteoapi/lark-mcp` **0.5.1** 中的 **501 个用户身份工具定义**，另有个人文档库快捷入口。工具目录不代表全部接口已经实测，调用仍受应用权限、用户授权和资源访问权限限制。二进制上传下载暂不支持。
+
+对话直接提供这 7 个工具入口：
+
+- `feishu_connection_status`
+- `feishu_search_documents`
+- `feishu_read_document`
+- `feishu_find_tools`
+- `feishu_describe_tool`
+- `feishu_call_read_tool`
+- `feishu_call_write_tool`
+
+一般流程是 **查找工具 → 查看参数定义 → 选择读或写入口执行**。多维表格记录查询使用只读的 `bitable.v1.appTableRecord.search`；个人文档库使用 `feishu.library.list/get`。所有业务调用均使用当前用户身份，不自动回退到应用身份。写操作按照用户明确的任务执行，消息发送和权限变更需要明确指示。
+
+## 开发
+
+要求 Node.js **≥ 22.13.0**。项目使用 Vinext、Cloudflare D1 和 Drizzle。
 
 ```sh
 npm ci
 cp .dev.vars.example .dev.vars
-# Edit .dev.vars and set your own freshly generated encryption key.
+# 在 .dev.vars 中填写自己新生成的加密密钥和本地服务地址。
 npm run dev
 ```
 
-The development server normally starts at http://127.0.0.1:5173. Local preview uses a simulated ChatGPT identity; it does not prove real OAuth access.
+开发服务通常位于 `http://127.0.0.1:5173`。本地预览使用模拟的 ChatGPT 身份，不能替代真实 OAuth 验证。
 
 ```sh
 node --test tests/*.test.mjs
@@ -32,35 +59,63 @@ npx tsc --noEmit --incremental false
 npm run build
 ```
 
-## Hosting and authentication
+## 部署与飞书授权
 
-This integration currently relies on ChatGPT Sites for private-site access, sign-in, and MCP plugin authentication. Do not expose it on a generic public Worker while trusting client-supplied identity headers. Independent hosting requires its own authentication boundary that removes untrusted identity headers.
+目前使用 ChatGPT Sites 提供私有访问、ChatGPT 登录和插件的 MCP OAuth 认证。部署自己的服务时：
 
-Create your own Sites project, add its project ID to `.openai/hosting.json`, bind `DB`, and apply the migrations under `drizzle/`. Configure these runtime values on the hosting platform:
+1. 创建自己的 Sites 项目，在 `.openai/hosting.json` 中设置它的 `project_id`，绑定 `DB`，并应用 `drizzle/` 下的迁移。
+2. 在托管平台配置 `FEISHU_VAULT_KEY`（自己新生成的 32 字节 base64 密钥，作为 secret）和 `SITE_ORIGIN`（自己的服务域名）。
+3. 在飞书自建应用中添加 `<SITE_ORIGIN>/oauth/feishu/callback` 重定向 URL，并开通基础用户身份权限：
 
-- `FEISHU_VAULT_KEY`: your own fresh 32-byte base64 encryption key, stored as a secret.
-- `SITE_ORIGIN`: your own site origin.
+   ```text
+   offline_access
+   search:docs:read
+   docx:document:readonly
+   wiki:node:read
+   base:record:retrieve
+   ```
 
-In your Feishu custom app, add `<SITE_ORIGIN>/oauth/feishu/callback` as a redirect URL and enable these user scopes:
+4. 完成飞书后台要求的发布流程，在私有连接页填写应用凭据并授权。
+5. 使用 Sites 为该项目生成的插件，按 [安装指引](skill.md) 连接到 ChatGPT。
 
-- `offline_access`
-- `search:docs:read`
-- `docx:document:readonly`
-- `wiki:node:read`
-- `base:record:retrieve`
+其他读写 API 需要对应权限。默认请求权限不是当前 token 的完整授权清单；`scopes=null` 表示无法确认实际范围，不能据此断言只有只读权限。遇到明确的权限缺失时，核对所需权限，再开通和重新授权。
 
-Publish the app, enter its App ID and App Secret in your private connection page, and authorize your account. This repository includes no reusable private credentials.
+独立托管需要自行实现可信认证边界并移除客户端伪造的身份头，不能直接公开部署后信任 `oai-authenticated-user-id`。
 
-## Data handling
+## 提示词与文档排版
 
-App Secret and OAuth tokens are encrypted with AES-GCM in the service database, with ciphertext bound to the user and purpose. The service also stores the site user identifier, app ID, and Feishu display name. Requested document content is returned to the client; this version does not persist a document-content cache.
+统一提示词在 [lib/plugin-instructions.ts](lib/plugin-instructions.ts)，包含连接使用规则和 `DOCUMENT_MATH_RULES`。它同时用于 MCP 初始化说明和文档写入工具的动态说明；修改后需要发布云端服务。
 
-Never commit live credentials, `.dev.vars`, databases, logs, authorization codes, or real account data. A connection deletion/revocation UI is not yet implemented.
+行间公式用独立文本块承载公式元素，并设置 `text.style.align=2`：
 
-## Source snapshot
+```json
+{
+  "block_type": 2,
+  "text": {
+    "style": { "align": 2 },
+    "elements": [{ "equation": { "content": "A=LL^{T}" } }]
+  }
+}
+```
 
-Prepared from source commit `d4c81c9763b6789066874bb976ea56fd97979a94`. Private deployment identifiers and original commit history are excluded.
+`equation.content` 使用原始 KaTeX 公式，不带 `$$` 等外层定界符。行内公式不改变整段的对齐方式。提示词指导模型生成参数，不会自动改写所有历史文档。
 
-## License
+## 数据与授权状态
 
-A project license has not yet been selected. This repository is initially intended as a private source backup. Before public release, select a license and review dependency and generated-code licensing. Existing third-party notices under `build/` and `vendor/` are retained.
+App Secret 和 OAuth token 使用 AES-GCM 加密保存，加密数据绑定到用户及用途。服务保存连接所需的用户标识、App ID 和飞书显示名；读取的文档正文返回给客户端，目前不持久缓存正文。
+
+不要提交真实凭据、`.dev.vars`、数据库、日志、授权码或账号数据。当前还没有连接删除/撤销的页面；可在飞书应用授权管理中撤销授权。
+
+## 常见问题
+
+- **只能看到团队知识空间**：团队列表不包含「我的文档库」，改用 `feishu.library.list/get`。
+- **多维表格能列出字段，读不到记录**：检查 `base:record:retrieve`；字段读取权限与记录查询权限不同。
+- **错误 131002**：先检查参数。知识库列表每页最多 50 项，服务已为相关工具加入上限保护；不要直接解释成 OAuth 缺失。
+- **更新后仍只有旧工具**：先新建对话；若工具清单仍未更新，再卸载并重新安装该插件。
+- **反复要求授权**：根据结构化错误区分权限缺失、认证失效和资源/参数错误。只有确有授权问题才重新连接。
+
+## 源码与许可
+
+此仓库保存可复用的源码，已同步到部署源提交 `8c2ead723c7d83be2b03f2c7a085adb4c8ade607`，包含授权诊断、分页保护和公式居中提示词。原实例的部署 ID、真实凭据和运行数据不包含在仓库中。GitHub 推送与云端部署是两个独立步骤。
+
+项目尚未选择许可证，当前作为私有源码备份使用。公开发布前应选择许可证并检查依赖和生成代码的许可。第三方声明保留在 `build/`、`vendor/` 等目录。

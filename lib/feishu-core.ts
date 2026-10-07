@@ -1,5 +1,5 @@
 export class PublicError extends Error {
-  constructor(public code: string, message: string, public status = 400, public details?: {required_scopes:string[]}) { super(message); }
+  constructor(public code: string, message: string, public status = 400, public details?: Record<string,unknown>) { super(message); }
 }
 export const SCOPES = ['offline_access', 'search:docs:read', 'docx:document:readonly', 'wiki:node:read', 'base:record:retrieve'];
 export const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v));

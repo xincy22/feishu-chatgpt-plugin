@@ -1,9 +1,10 @@
 import { env } from 'cloudflare:workers';
+import { scopeReport, failureReport } from './authorization-report';
 import { PublicError, SCOPES, random, digest, pkce, seal, openVault, documentReference } from './feishu-core';
 
 type Row = { user_id:string; revision:string; app_id:string; config_cipher:string; tokens_cipher:string|null; updated_at:number };
 type AppConfig = { appId:string; appSecret:string };
-type Tokens = { accessToken:string; refreshToken?:string; expiresAt:number; name?:string };
+type Tokens = { accessToken:string; refreshToken?:string; expiresAt:number; name?:string; grantedScopes?:string[] };
 type State = { state_hash:string; user_id:string; revision:string; verifier_cipher:string; expires_at:number };
 const API='https://open.feishu.cn';
 const now=()=>Math.floor(Date.now()/1000);
@@ -18,7 +19,7 @@ export async function status(user:string) {
   if(r?.tokens_cipher)t=await openVault<Tokens>(secret(),user+':tokens',r.tokens_cipher);
   return {configured:!!r,connected:!!t && (t.expiresAt>now() || !!t.refreshToken),
     app_id:r?.app_id ?? null,feishu_name:t?.name ?? null,expires_at:t?.expiresAt ?? null,
-    callback_url:callbackUrl(),scopes:SCOPES,connect_url:siteOrigin()};
+    callback_url:callbackUrl(),...scopeReport(t?.grantedScopes),connection_ref:await digest(user+':'+(r?.app_id??'')).then(v=>v.slice(0,12)),server_version:'0.2.4',connect_url:siteOrigin()};
 }
 export async function saveConfig(user:string, appId:string, appSecret:string) {
   if(!/^cli_[A-Za-z0-9]{6,128}$/.test(appId)||appSecret.length<10||appSecret.length>512||/[\r\n]/.test(appSecret))
@@ -30,10 +31,10 @@ export async function saveConfig(user:string, appId:string, appSecret:string) {
 async function tokenExchange(c:AppConfig, args:Record<string,string>):Promise<Tokens> {
   const response=await fetch(API+'/open-apis/authen/v2/oauth/token',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({...args,client_id:c.appId,client_secret:c.appSecret}),signal:AbortSignal.timeout(15000)});
-  const data=await response.json() as {code?:number;access_token?:string;refresh_token?:string;expires_in?:number};
+  const data=await response.json() as {code?:number;access_token?:string;refresh_token?:string;expires_in?:number;scope?:string};
   if(!response.ok || (data.code!==undefined && data.code!==0) || !data.access_token || !(Number(data.expires_in)>0))
     throw new PublicError('feishu_authorization_failed','飞书授权未完成，请检查应用凭据、重定向 URL 和用户权限。',401);
-  return {accessToken:data.access_token,refreshToken:data.refresh_token,expiresAt:now()+Number(data.expires_in)};
+  return {accessToken:data.access_token,refreshToken:data.refresh_token,expiresAt:now()+Number(data.expires_in),...(typeof data.scope==='string'?{grantedScopes:data.scope.split(/\s+/).filter(Boolean)}:{})};
 }
 export async function authorize(user:string) {
   const r=await row(user);if(!r)throw new PublicError('configure_first','请先填写飞书应用凭据。');
@@ -89,7 +90,7 @@ export async function currentToken(user:string):Promise<string> {
   }
   try {
     const next=await tokenExchange(await config(r),{grant_type:'refresh_token',refresh_token:t.refreshToken});
-    next.refreshToken=next.refreshToken || t.refreshToken;next.name=t.name;
+    next.refreshToken=next.refreshToken || t.refreshToken;next.name=t.name;next.grantedScopes=next.grantedScopes??t.grantedScopes;
     const saved=await database().prepare('UPDATE connections SET tokens_cipher = ?,updated_at = ? WHERE user_id = ? AND revision = ? AND tokens_cipher = ?')
       .bind(await seal(secret(),user+':tokens',next),now(),user,r.revision,r.tokens_cipher).run();
     if(saved.meta.changes!==1)throw new PublicError('config_changed','连接已改变，请重试。',409);
@@ -108,8 +109,8 @@ export async function api(token:string,path:string,body?:unknown,method?:string)
   const payload=await response.json() as {code?:number;data?:Record<string,unknown>;msg?:string;error?:{permission_violations?:{subject?:string}[]}};
   if(!response.ok || payload.code!==0) {
     const code=typeof payload.code==='number'?String(payload.code):String(response.status);
-    const required=[...new Set([...(payload.error?.permission_violations??[]).map(v=>v.subject??''),...(payload.msg??'').matchAll(/\b(?:base|bitable|wiki|drive|docx|docs|contact|im|task|calendar):[a-z_][a-z0-9_.]*(?::[a-z_][a-z0-9_.]*)*\b/g)].map(v=>typeof v==='string'?v:v[0]).filter(v=>/^[a-z_]+:[a-z0-9_.:]+$/.test(v)))];
-    throw new PublicError('feishu_api_'+code,'飞书请求失败（'+code+'）。'+(required.length?'缺少所需权限，请在应用后台开通后，从连接页面重新授权。':'请检查应用用户权限、授权范围和文档访问权限。'),502,required.length?{required_scopes:required}:undefined);
+    const issue=failureReport(payload,response.status,path,method??(body===undefined?'GET':'POST'));
+    throw new PublicError('feishu_api_'+code,issue.message,502,issue.details);
   }
   return payload.data ?? {};
 }

@@ -2,6 +2,7 @@ import { Validator, type Schema } from '@cfworker/json-schema';
 import catalogue from './generated/official-tools.json';
 import provenance from './generated/provenance.json';
 import { PublicError } from './feishu-core';
+import { DOCUMENT_MATH_RULES } from './plugin-instructions';
 export type OfficialTool={name:string;project:string;description:string;path:string;method:string;readOnly:boolean;inputSchema:Schema};
 const officialEntries=catalogue as unknown as OfficialTool[];
 const readonlyPost=new Set(['bitable.v1.appTableRecord.search','wiki.v1.node.search']);
@@ -15,6 +16,13 @@ for(const [name,path,description,source] of [
  delete schema.properties.path;schema.required=schema.required?.filter(k=>k!=='path');
  entries.push({name,project:'wiki',description,path,method:'GET',readOnly:true,inputSchema:schema});
 }
+const wikiPagination=new Set(['wiki.v2.space.list','wiki.v2.spaceNode.list','feishu.library.list']);
+for(const t of entries){
+ if(!wikiPagination.has(t.name))continue;
+ t.inputSchema=structuredClone(t.inputSchema);
+ const schema=t.inputSchema as {properties?:{params?:{properties?:Record<string,unknown>}}};
+ if(schema.properties?.params?.properties)schema.properties.params.properties.page_size={type:'integer',minimum:1,maximum:50,default:30,description:'每页最多 50 项。has_more=true 时使用 page_token 继续，不要靠增大 page_size 获取全部节点。'};
+}
 const registry=new Map(entries.map(t=>[t.name,t]));
 export const officialProvenance=provenance;
 export function findOfficialTools(query:string,project?:string,offset=0,limit=12){
@@ -24,9 +32,15 @@ export function findOfficialTools(query:string,project?:string,offset=0,limit=12
  tools:found.slice(offset,offset+limit).map(t=>({name:t.name,project:t.project,description:t.description,read_only:t.readOnly})),next_offset:offset+limit<found.length?offset+limit:null};
 }
 export function officialTool(name:string){const t=registry.get(name);if(!t)throw new PublicError('unknown_tool','官方工具名称不存在，请先查找工具。');return t;}
-export function describeOfficialTool(name:string){const t=officialTool(name);return {name:t.name,description:t.description,inputSchema:t.inputSchema,read_only:t.readOnly,execute_with:t.readOnly?'feishu_call_read_tool':'feishu_call_write_tool',identity:'current_user',notice:(name==='bitable.v1.appTableRecord.list'?'此为旧版记录列表，优先使用 bitable.v1.appTableRecord.search（只读查询）读取字段值。':'')+(name==='wiki.v2.space.list'?'此列表不含“我的文档库”，请使用 feishu.library.list/get。':'')+'使用官方参数结构（path、params、data）。无需传递凭据或 useUAT。写入前应先读取目标；写入失败不得假定未生效或自动重试。二进制上传下载不支持。'};}
+export function describeOfficialTool(name:string){const t=officialTool(name);return {name:t.name,description:t.description,inputSchema:t.inputSchema,read_only:t.readOnly,execute_with:t.readOnly?'feishu_call_read_tool':'feishu_call_write_tool',identity:'current_user',...(t.project==='docx'&&!t.readOnly?{document_formatting_rules:DOCUMENT_MATH_RULES}:{}),notice:(name==='bitable.v1.appTableRecord.list'?'此为旧版记录列表，优先使用 bitable.v1.appTableRecord.search（只读查询）读取字段值。':'')+(name==='wiki.v2.space.list'?'此列表不含“我的文档库”，请使用 feishu.library.list/get。':'')+'使用官方参数结构（path、params、data）。无需传递凭据或 useUAT。写入前应先读取目标；写入失败不得假定未生效或自动重试。二进制上传下载不支持。'};}
 export function prepareOfficialCall(name:string,args:unknown,write:boolean){
  const t=officialTool(name);if(t.readOnly===write)throw new PublicError('wrong_execution_channel','请按工具说明选择读或写调用入口。');
+ // Cap only known read-only Wiki pagination; preserve the caller object and all write payloads.
+ if(wikiPagination.has(name)&&args&&typeof args==='object'&&!Array.isArray(args)){
+  const source=args as {params?:Record<string,unknown>};
+  const size=source.params?.page_size;
+  if(typeof size==='number'&&Number.isInteger(size)&&size>50)args={...source,params:{...source.params,page_size:50}};
+ }
  const checked=new Validator(t.inputSchema,'7',false).validate(args);
  if(!checked.valid)throw new PublicError('invalid_arguments','参数不符合官方工具定义：'+checked.errors.slice(0,3).map(e=>e.instanceLocation+' '+e.keyword).join('; '));
  const a=args as {path?:Record<string,unknown>;params?:Record<string,unknown>;data?:unknown};

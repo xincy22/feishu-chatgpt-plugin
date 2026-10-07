@@ -40,3 +40,11 @@ test('record search is a read action even with POST transport',()=>{
  assert.equal(c.method,'POST');assert.equal(c.path,'/open-apis/bitable/v1/apps/appABC/tables/tblABC/records/search?page_size=3');
  assert.throws(()=>prepareOfficialCall('bitable.v1.appTableRecord.update',{path:{app_token:'appABC',table_id:'tblABC',record_id:'recABC'},data:{fields:{Name:'x'}}},false));
 });
+
+test('Wiki pagination is capped without mutating caller inputs',()=>{
+ const a={params:{page_size:100,page_token:'next'}};
+ const c=prepareOfficialCall('feishu.library.list',a,false);
+ assert(c.path.includes('page_size=50'));assert(c.path.includes('page_token=next'));assert.equal(a.params.page_size,100);
+ const schema=describeOfficialTool('feishu.library.list').inputSchema;assert.equal(schema.properties.params.properties.page_size.maximum,50);
+ assert.throws(()=>prepareOfficialCall('feishu.library.list',{params:{page_size:0}},false));
+});
